@@ -4,36 +4,37 @@ import os
 from datetime import datetime
 
 class ExportResults:
-    def __init__(self, connection_manager, logger):
+    def __init__(self, connection_manager, logger, total_checks, passed_checks):
         self.cm = connection_manager
         self.logger = logger
-    
+        self.total_checks = total_checks
+        self.passed_checks = passed_checks
+
     def execute(self):
         """Xuất kết quả ra file với dữ liệu thực tế"""
         try:
             self.logger.info("Exporting results")
-            
+
             # Tạo thư mục results nếu chưa tồn tại
             if not os.path.exists('results'):
                 os.makedirs('results')
-            
+
             # Thu thập dữ liệu thực tế
             nginx_version = self._get_nginx_version()
             service_status = self._get_service_status()
             config_status = self._get_config_status()
             security_headers = self._check_security_headers()
-            
+
             # Tính toán compliance rate thực tế
-            total_checks = 21  # Tổng số checks từ tất cả modules
-            passed_checks = 17  # Giá trị thực tế từ kết quả chạy
-            
-            compliance_rate = (passed_checks / total_checks) * 100
-            
+            total_checks = self.total_checks
+            passed_checks = self.passed_checks
+            compliance_rate = (passed_checks / total_checks) * 100 if total_checks > 0 else 0
+
             # Tạo filename với timestamp
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             hostname = self.cm.host.replace('.', '_')
             filename = f"results/nginx_audit_{hostname}_{timestamp}.json"
-            
+
             # Kết quả chi tiết
             results = {
                 'host': self.cm.host,

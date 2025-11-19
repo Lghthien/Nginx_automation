@@ -61,7 +61,7 @@ class Orchestrator:
         # Thử import export_results nếu có
         try:
             from modules.export_results import ExportResults
-            export_module = ExportResults(self.connection_manager, self.logger)
+            export_module = ExportResults(self.connection_manager, self.logger, total_checks, passed_checks)
             export_module.execute()
         except ImportError as e:
             self.logger.warning(f"Cannot load module export_results: {e}")
@@ -71,7 +71,10 @@ class Orchestrator:
         # Điều chỉnh total_checks để tránh chia cho 0
         if total_checks == 0:
             total_checks = 1
-            
+
+        # Đảm bảo passed_checks không vượt quá total_checks
+        passed_checks = min(passed_checks, total_checks)
+
         summary = {
             'total': total_checks,
             'pass': passed_checks,
