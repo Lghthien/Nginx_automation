@@ -1,0 +1,7 @@
+paramiko
+fabric
+jinja2
+python-dotenv
+pyyaml
+rich
+click
