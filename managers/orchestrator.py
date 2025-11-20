@@ -15,18 +15,18 @@ class Orchestrator:
         
         # Danh sách các module theo thứ tự logic đã được điều chỉnh
         self.modules = [
-            'prepare_system',
-            'install_nginx', 
-            'audit_before',
-            'config_security',
-            'config_user_perm',
-            'config_logging',
-            'validate_config',
-            'cis_remediate',    # BƯỚC KHẮC PHỤC
-            'restart_service',
-            'manual_check',     # THU THẬP DỮ LIỆU THỦ CÔNG
-            'audit_after',      # FINAL AUDIT (Tạo cis_audit_results.json)
-            'export_results'    # BÁO CÁO CUỐI CÙNG (Đọc tất cả dữ liệu)
+                'prepare_system',
+                'install_nginx', 
+                'audit_before',
+                'config_security',
+                'config_user_perm', 
+                'config_logging',
+                'validate_config',
+                'cis_remediate',    # QUAN TRỌNG: Chạy remediation trước khi audit
+                'restart_service',
+                'manual_check',     
+                'audit_after',      # Final audit sau khi đã fix
+                'export_results'
         ]
     
     def _cleanup_temp_files(self):

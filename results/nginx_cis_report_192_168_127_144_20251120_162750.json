@@ -1,10 +1,14 @@
 {
-  "benchmark": "CIS NGINX Benchmark v2.1.0",
-  "summary": {
+  "host": "192_168_127_144",
+  "timestamp": "20251120_162750",
+  "overall_compliance_rate": 71.0,
+  "total_checks_in_pipeline": 51,
+  "passed_checks_in_pipeline": 39,
+  "cis_audit_summary": {
     "total_checks": 31,
-    "passed": 21
+    "passed": 22
   },
-  "results": {
+  "cis_audit_details": {
     "passed": [
       "1.1.1 - NGINX is installed",
       "2.1.4 - Autoindex module is disabled",
@@ -13,6 +17,7 @@
       "2.2.3 - NGINX service account has invalid shell",
       "2.3.1 - NGINX directories and files owned by root",
       "2.3.2 - Access to NGINX directories and files is restricted",
+      "2.4.2 - Requests for unknown host names are rejected",
       "2.4.3 - keepalive_timeout is configured (<= 10s)",
       "2.4.4 - send_timeout is configured (<= 10s)",
       "2.5.1 - Server tokens are hidden (server_tokens off)",
@@ -32,7 +37,6 @@
       "2.1.2 - HTTP WebDAV module not installed",
       "2.1.3 - Gzip modules are disabled",
       "2.3.3 - NGINX process ID (PID) file is secured",
-      "2.4.2 - Requests for unknown host names are rejected",
       "4.1.3 - Private key permissions are restricted (<= 600)",
       "4.1.4 - Only modern TLS protocols (>= TLSv1.2) are used",
       "4.1.6 - Custom Diffie-Hellman parameters are used",
@@ -40,5 +44,37 @@
       "4.1.9 - Upstream traffic is authenticated with a client certificate",
       "4.1.12 - Session resumption is disabled (PFS enabled)"
     ]
-  }
+  },
+  "cis_manual_check_data": {
+    "4.1.1": {
+      "description": "HTTP to HTTPS Redirection Status",
+      "command": "grep -ir 'return 301 https' /etc/nginx",
+      "output_preview": "",
+      "status": "REQUIRES_MANUAL_REVIEW"
+    },
+    "4.1.5": {
+      "description": "Weak Ciphers/SSL_Ciphers Configuration",
+      "command": "grep -ir ssl_ciphers /etc/nginx/",
+      "output_preview": "/etc/nginx/sites-available/default:\t# Read up on ssl_ciphers to ensure a secure configuration.",
+      "status": "REQUIRES_MANUAL_REVIEW"
+    }
+  },
+  "modules_executed": [
+    "PrepareSystem",
+    "InstallNginx",
+    "AuditBefore",
+    "ConfigSecurity",
+    "ConfigUserPerm",
+    "ConfigLogging",
+    "ValidateConfig",
+    "CISRemediate",
+    "RestartService",
+    "ManualCheck",
+    "AuditAfter",
+    "ExportResults"
+  ],
+  "recommendations": [
+    "Review FAILED checks in 'cis_audit_details' for immediate automated remediation.",
+    "MANUAL ACTION REQUIRED: Review 'cis_manual_check_data' (e.g., Certificates, Weak Ciphers, Redirection) as these items require administrative verification."
+  ]
 }
