@@ -62,7 +62,7 @@ def main(hosts, username, password, key_file):
     logger = logging.getLogger(__name__)
     
     try:
-        logger.info("Starting NGINX CIS Automation Tool - Level 2")
+        logger.info("Starting NGINX CIS Automation Tool")
         logger.info(f"Target hosts: {list(hosts)}")
         
         all_summaries = []

@@ -1,0 +1,14 @@
+{
+  "4.1.1": {
+    "description": "HTTP to HTTPS Redirection Status",
+    "command": "grep -ir 'return 301 https' /etc/nginx",
+    "output_preview": "",
+    "status": "REQUIRES_MANUAL_REVIEW"
+  },
+  "4.1.5": {
+    "description": "Weak Ciphers/SSL_Ciphers Configuration",
+    "command": "grep -ir ssl_ciphers /etc/nginx/",
+    "output_preview": "/etc/nginx/sites-available/default:\t# Read up on ssl_ciphers to ensure a secure configuration.",
+    "status": "REQUIRES_MANUAL_REVIEW"
+  }
+}

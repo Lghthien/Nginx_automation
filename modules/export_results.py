@@ -1,126 +1,92 @@
 import logging
-import importlib
-import sys
+import json
 import os
-import re
+from datetime import datetime
+from typing import Dict, Any
 
-# Thêm current directory vào path để fix lỗi import
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+class ExportResults:
+    def __init__(self, connection_manager, logger, total_checks, passed_checks):
+        self.cm = connection_manager
+        self.logger = logger
+        self.total_checks = total_checks
+        self.passed_checks = passed_checks
 
-class Orchestrator:
-    def __init__(self, connection_manager):
-        self.connection_manager = connection_manager
-        self.logger = logging.getLogger(__name__)
-        self.results = {}
-        
-        # SỬA LỖI #2: Đã thêm các module CIS vào pipeline theo thứ tự Logic
-        self.modules = [
-            'prepare_system',
-            'install_nginx', 
-            'audit_before',
-            'config_security',
-            'config_user_perm',
-            'config_logging',
-            'validate_config',
-            'cis_remediate',    # BƯỚC KHẮC PHỤC
-            'restart_service',
-            'manual_check',     # THU THẬP DỮ LIỆU THỦ CÔNG
-            'audit_after',      # FINAL AUDIT (CISAudit)
-        ]
-    
-    def _cleanup_temp_files(self):
-        # ... (giữ nguyên hàm cleanup)
-        temp_files = ["cis_audit_results.json", "cis_manual_results.json"]
-        for f in temp_files:
-            try:
-                os.remove(f)
-                self.logger.info(f"Cleaned up temporary file: {f}")
-            except OSError as e:
-                self.logger.debug(f"Could not remove temporary file {f}: {e}")
-
-    def run(self):
-        """Chạy tất cả các module"""
-        total_checks = 0
-        passed_checks = 0
-        
-        for module_file in self.modules:
-            try:
-                module_name = self._snake_to_camel(module_file)
-                self.logger.info(f"Executing module: {module_name}")
-                
-                module_class = self._import_module(module_file, module_name)
-                if not module_class:
-                    continue
-                
-                module = module_class(self.connection_manager, self.logger)
-                success = module.execute()
-                
-                if hasattr(module, 'check_count') and hasattr(module, 'passed_checks'):
-                    total_checks += module.check_count
-                    passed_checks += module.passed_checks
-                
-                self.logger.info(f"Completed module: {module_name}")
-                
-                if not success:
-                    self.logger.warning(f"Module {module_name} completed with warnings or minor errors")
-                    
-            except Exception as e:
-                self.logger.error(f"Module {module_name} failed unexpectedly: {str(e)}")
-                continue
-        
-        # --- BƯỚC EXPORT CUỐI CÙNG ---
+    def _load_json_file(self, filename: str) -> Dict[str, Any]:
+        """Tải kết quả chi tiết từ file JSON tạm thời"""
         try:
-            # SỬA LỖI #3: Import và gọi ExportResults với các tham số tổng hợp
-            from export_results import ExportResults
-            export_module = ExportResults(self.connection_manager, self.logger, total_checks, passed_checks)
-            export_module.execute()
-        except ImportError as e:
-            self.logger.error(f"Cannot load ExportResults module: {e}")
+            full_path = os.path.join(os.getcwd(), filename)
+            
+            with open(full_path, 'r', encoding='utf-8') as f:
+                self.logger.info(f"Successfully loaded {filename} for final report.")
+                return json.load(f)
+        except FileNotFoundError:
+            self.logger.warning(f"CIS results file not found: {filename}. Report details may be missing.")
+            return {}
         except Exception as e:
-            self.logger.error(f"Final Export results failed: {e}")
+            self.logger.error(f"Error loading {filename}: {e}")
+            return {}
 
-        self._cleanup_temp_files()
+    def _generate_recommendations(self, compliance_rate, manual_data):
+        """Tạo các khuyến nghị dựa trên kết quả audit."""
+        recommendations = []
+        if compliance_rate >= 99:
+            recommendations.append("Excellent compliance achieved for automated checks. Focus entirely on manual verification.")
+        else:
+            recommendations.append("Review FAILED checks in 'cis_audit_details' for immediate automated remediation.")
 
-        # ... (Phần tổng kết cuối cùng giữ nguyên) ...
-        if total_checks == 0:
-            total_checks = 1
+        if manual_data:
+            recommendations.append("MANUAL ACTION REQUIRED: Review 'cis_manual_check_data' (e.g., Certificates, Weak Ciphers, Redirection) as these items require administrative verification.")
+            
+        return recommendations
 
-        passed_checks = min(passed_checks, total_checks)
-
-        summary = {
-            'total': total_checks,
-            'pass': passed_checks,
-            'compliance': (passed_checks / total_checks * 100)
-        }
-        
-        success = summary['compliance'] >= 90 
-        return success, summary
-    
-    def _snake_to_camel(self, snake_str):
-        """SỬA LỖI #1: Xử lý trường hợp có 3 chữ cái đầu viết hoa (CISRemediate)"""
-        if snake_str in ['cis_remediate', 'manual_check', 'audit_after']:
-            # Ví dụ: cis_remediate -> CISRemediate (hoặc giữ nguyên tên lớp)
-            # Giả định tên lớp là CISRemediate và ManualCheck
-            return ''.join([s.title() for s in snake_str.split('_') if s])
-        
-        # Logic CamelCase chuẩn
-        components = snake_str.split('_')
-        return ''.join(x.title() for x in components)
-    
-    def _import_module(self, module_file, class_name):
-        """Import module bằng tên file"""
+    def execute(self):
+        """Xuất toàn bộ kết quả chi tiết ra file báo cáo cuối cùng."""
         try:
-            # Import trực tiếp (giả định các file module nằm ngang hàng)
-            module = importlib.import_module(module_file) 
-            return getattr(module, class_name)
-        except ImportError as e:
-            # Thử import từ thư mục modules (nếu có)
-            try:
-                module = importlib.import_module(f'modules.{module_file}')
-                return getattr(module, class_name)
-            except:
-                self.logger.error(f"Cannot import module {module_file} or modules.{module_file}: {e}")
-                return None
-        except AttributeError as e:
-            self.logger.error(f"Cannot find class {class_name} in module {module_file}: {e}")
-            return None
+            self.logger.info("Exporting consolidated final report.")
+
+            # Tải Dữ liệu Chi tiết từ các file tạm thời
+            cis_audit_results = self._load_json_file("cis_audit_results.json")
+            cis_manual_results = self._load_json_file("cis_manual_results.json")
+
+            cis_summary = cis_audit_results.get('summary', {})
+            total_checks_cis = cis_summary.get('total_checks', 0)
+            passed_checks_cis = cis_summary.get('passed', 0)
+            
+            compliance_rate = (passed_checks_cis / total_checks_cis) * 100 if total_checks_cis > 0 else 0
+
+            # Tạo Báo cáo Cuối cùng
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            hostname = self.cm.host.replace('.', '_')
+            filename = f"nginx_cis_report_{hostname}_{timestamp}.json"
+            filepath = os.path.join('results', filename)
+
+            if not os.path.exists('results'):
+                os.makedirs('results')
+
+            results_payload = {
+                'host': hostname,
+                'timestamp': timestamp,
+                'overall_compliance_rate': round(compliance_rate, 1),
+                'total_checks_in_pipeline': self.total_checks,
+                'passed_checks_in_pipeline': self.passed_checks,
+                'cis_audit_summary': cis_summary,
+                'cis_audit_details': cis_audit_results.get('results', {}),
+                'cis_manual_check_data': cis_manual_results,
+                'modules_executed': [
+                    'PrepareSystem', 'InstallNginx', 'AuditBefore', 'ConfigSecurity', 
+                    'ConfigUserPerm', 'ConfigLogging', 'ValidateConfig', 
+                    'CISRemediate', 'RestartService', 'ManualCheck', 
+                    'AuditAfter', 'ExportResults'
+                ],
+                'recommendations': self._generate_recommendations(compliance_rate, cis_manual_results)
+            }
+            
+            with open(filepath, 'w', encoding='utf-8') as f:
+                json.dump(results_payload, f, indent=2, ensure_ascii=False)
+            
+            self.logger.info(f"Full detailed report exported to {filepath}")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Final Export results failed: {str(e)}")
+            return False

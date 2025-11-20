@@ -1,5 +1,5 @@
 import logging
-import base64 # <-- ĐÃ THÊM IMPORT ĐỂ FIX LỖI
+import base64
 
 class ConfigLogging:
     def __init__(self, connection_manager, logger):
@@ -14,11 +14,15 @@ class ConfigLogging:
             
             # --- 3.3 Ensure error logging is enabled and set to info level ---
             self.logger.info("Setting error_log to info level (CIS 3.3)")
-            # Xóa các dòng error_log cũ trước khi thêm dòng mới
-            self.cm.exec_command("sudo sed -i '/error_log/d' /etc/nginx/nginx.conf", sudo=True) 
-            cmd_error_log = 'echo "error_log /var/log/nginx/error.log info;" | sudo tee -a /etc/nginx/nginx.conf'
             
-            if self.cm.exec_command(cmd_error_log, sudo=True)[0] == 0:
+            # 1. Xóa các dòng error_log cũ (FIX: Đảm bảo không còn dòng cũ)
+            self.cm.exec_command("sudo sed -i '/error_log/d' /etc/nginx/nginx.conf", sudo=True) 
+            
+            # 2. Chèn dòng mới an toàn vào khối HTTP (FIX: Sửa lỗi cú pháp NGINX)
+            # Chèn sau dòng 'http {'
+            cmd_insert_error_log = "sudo sed -i '/http {/a error_log /var/log/nginx/error.log info;' /etc/nginx/nginx.conf"
+            
+            if self.cm.exec_command(cmd_insert_error_log, sudo=True)[0] == 0:
                  self.passed_checks += 1
                  self.logger.info("Error log set to info.")
             

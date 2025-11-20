@@ -45,6 +45,19 @@ class ValidateConfig:
                         if "emerg" in line.lower():
                             self.logger.error(f"Configuration error: {line}")
                 
+                # Cố gắng khôi phục từ backup nếu có
+                self.logger.warning("Attempting to restore nginx.conf from backup...")
+                restore_status, _, restore_error = self.cm.exec_command('sudo cp /etc/nginx/nginx.conf.backup /etc/nginx/nginx.conf', sudo=True)
+                if restore_status == 0:
+                    self.logger.info("Successfully restored nginx.conf from backup")
+                    # Kiểm tra lại sau khi restore
+                    validate_status, _, _ = self.cm.exec_command('nginx -t', sudo=True)
+                    if validate_status == 0:
+                        self.logger.info("Configuration is valid after restore")
+                        return True
+                else:
+                    self.logger.error(f"Failed to restore backup: {restore_error}")
+                
                 return False
                 
         except Exception as e:
