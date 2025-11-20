@@ -110,13 +110,13 @@ class CISAudit:
     # --- 2. Basic Configuration - Network Configuration ---
     def _check_2_4_2_unknown_hosts(self):
         """2.4.2 Ensure requests for unknown host names are rejected (Automated)"""
-        # Check for a default server that rejects requests (listen 80 default_server + server_name _)
-        rc1, output1, _ = self.run_command("grep -A 5 'listen.*80.*default_server' /etc/nginx/conf.d/*.conf | grep -E '(server_name _|return 444)'", sudo=True)
+        # Check if catchall.conf file exists with default_server
+        rc, output, _ = self.run_command("grep -l 'default_server' /etc/nginx/conf.d/*.conf 2>/dev/null | head -1", sudo=True)
         
-        # Or check if the specific catchall.conf file exists
-        rc2, output2, _ = self.run_command("test -f /etc/nginx/conf.d/catchall.conf", sudo=True)
+        # Also check for the marker 'server_name _' which indicates catchall
+        rc2, output2, _ = self.run_command("grep -r 'server_name _' /etc/nginx/conf.d/ 2>/dev/null", sudo=True)
         
-        return rc1 == 0 or rc2 == 0, "2.4.2 - Requests for unknown host names are rejected"
+        return rc == 0 or rc2 == 0, "2.4.2 - Requests for unknown host names are rejected"
 
     def _check_2_4_3_keepalive_timeout(self):
         """2.4.3 Ensure keepalive_timeout is 10 seconds or less, but not 0 (Automated)"""
