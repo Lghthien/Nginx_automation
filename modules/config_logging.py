@@ -1,4 +1,5 @@
 import logging
+import base64
 
 class ConfigLogging:
     def __init__(self, connection_manager, logger):
@@ -9,33 +10,50 @@ class ConfigLogging:
 
     def execute(self):
         try:
-            self.logger.info("Configuring logging settings")
+            self.logger.info("Configuring logging settings (CIS 3.3, 3.4)")
             
-            # Tạo log directory nếu chưa tồn tại
-            commands = [
-                'sudo mkdir -p /var/log/nginx',
-                'sudo touch /var/log/nginx/access.log',
-                'sudo touch /var/log/nginx/error.log',
-                'sudo chown -R nginx:nginx /var/log/nginx 2>/dev/null || sudo chown -R www-data:www-data /var/log/nginx 2>/dev/null || echo "Cannot change ownership, continuing..."'
-            ]
+            # --- 3.3 Ensure error logging is enabled and set to info level ---
+            self.logger.info("Setting error_log to info level (CIS 3.3)")
+            cmd_error_log = 'echo "error_log /var/log/nginx/error.log info;" | sudo tee -a /etc/nginx/nginx.conf'
+            if self.cm.exec_command(cmd_error_log, sudo=True)[0] == 0:
+                 self.passed_checks += 1
+                 self.logger.info("Error log set to info.")
             
-            success_count = 0
-            for cmd in commands:
-                exit_status, output, error = self.cm.exec_command(cmd, sudo=True)
-                if exit_status == 0 or "Cannot change ownership" in error:
-                    success_count += 1
-                    self.logger.info(f"Logging command successful: {cmd}")
-                else:
-                    self.logger.warning(f"Logging command failed: {cmd}, Error: {error}")
+            # --- 3.4 Ensure log files are rotated ---
+            self.logger.info("Configuring log rotation (CIS 3.4)")
+            logrotate_config = """/var/log/nginx/*.log {
+    weekly
+    missingok
+    rotate 13
+    compress
+    delaycompress
+    notifempty
+    create 640 nginx adm
+    sharedscripts
+    postrotate
+        if [ -f /var/run/nginx.pid ]; then
+            kill -USR1 `cat /var/run/nginx.pid`
+        fi
+    endscript
+}
+"""
+            # Base64 encode config để ghi vào file
+            config_b64 = logging_config = logrotate_config
+            config_b64 = config_b64.encode('utf-8')
+            config_b64 = base64.b64encode(config_b64).decode('utf-8')
+
+            cmd_logrotate = f'echo "{config_b64}" | base64 -d | sudo tee /etc/logrotate.d/nginx'
             
-            self.passed_checks = success_count
-            
-            if success_count >= 2:
-                self.logger.info("Logging configuration completed")
-                return True
+            if self.cm.exec_command(cmd_logrotate, sudo=True)[0] == 0:
+                self.passed_checks += 1
+                self.logger.info("Log rotation configured for weekly/13 weeks.")
             else:
-                self.logger.warning("Logging configuration completed with warnings")
-                return True  # Vẫn trả về True vì không phải lỗi nghiêm trọng
+                 self.logger.warning("Failed to write logrotate configuration.")
+
+            # Đảm bảo quyền cho thư mục log
+            self.cm.exec_command('sudo mkdir -p /var/log/nginx && sudo chown -R nginx:nginx /var/log/nginx', sudo=True)
+            
+            return self.passed_checks >= 1
                 
         except Exception as e:
             self.logger.error(f"Logging configuration failed: {str(e)}")

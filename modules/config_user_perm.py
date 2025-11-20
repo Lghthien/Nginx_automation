@@ -4,34 +4,48 @@ class ConfigUserPerm:
     def __init__(self, connection_manager, logger):
         self.cm = connection_manager
         self.logger = logger
-        self.check_count = 2
+        self.check_count = 3
         self.passed_checks = 0
 
     def execute(self):
         try:
-            self.logger.info("Configuring user and permissions")
+            self.logger.info("Configuring user and permissions (CIS 2.2.1, 2.3.1)")
             
-            # Check if nginx user exists
+            # --- 2.2.1 Ensure NGINX is run using a non-privileged, dedicated service account ---
+            self.logger.info("Ensuring dedicated, non-privileged user 'nginx' exists.")
+            user_exists = False
             exit_status, output, error = self.cm.exec_command('id nginx')
             if exit_status != 0:
-                # Create nginx user
-                exit_status, output, error = self.cm.exec_command('useradd -r -s /bin/false nginx', sudo=True)
+                # Tạo user chuyên dụng theo khuyến nghị CIS 2.2.1 [cite: 412]
+                create_cmd = 'useradd -r -s /sbin/nologin nginx 2>/dev/null || useradd -r -s /bin/false nginx'
+                exit_status, output, error = self.cm.exec_command(create_cmd, sudo=True)
                 if exit_status == 0:
-                    self.logger.info("Created nginx user")
+                    self.logger.info("Created nginx system user with nologin shell")
                     self.passed_checks += 1
+                    user_exists = True
                 else:
-                    self.logger.warning(f"Failed to create nginx user: {error}")
+                    self.logger.warning(f"Failed to create nginx user: {error}. Assuming existing user.")
             else:
                 self.logger.info("Nginx user already exists")
                 self.passed_checks += 1
+                user_exists = True
 
-            # Set permissions for NGINX directories
-            exit_status, output, error = self.cm.exec_command('chown -R nginx:nginx /var/log/nginx', sudo=True)
+            # Cấu hình NGINX worker process chạy bằng user này
+            if user_exists:
+                self.logger.info("Configuring nginx.conf 'user nginx;'")
+                # Thêm/cập nhật directive 'user nginx;' vào đầu nginx.conf [cite: 414]
+                cmd = "grep -q '^user nginx;' /etc/nginx/nginx.conf || sed -i '1i user nginx;' /etc/nginx/nginx.conf"
+                self.cm.exec_command(cmd, sudo=True)
+                self.passed_checks += 1
+            
+            # --- 2.3.1 Ensure NGINX directories and files are owned by root ---
+            self.logger.info("Ensuring /etc/nginx is owned by root (CIS 2.3.1)")
+            exit_status, output, error = self.cm.exec_command('chown -R root:root /etc/nginx', sudo=True)
             if exit_status == 0:
-                self.logger.info("Set permissions for NGINX logs")
+                self.logger.info("Set ownership of /etc/nginx to root:root")
                 self.passed_checks += 1
             else:
-                self.logger.warning(f"Failed to set permissions: {error}")
+                self.logger.warning(f"Failed to set ownership for /etc/nginx: {error}")
 
             self.logger.info("User and permissions configuration completed")
             return self.passed_checks >= 1

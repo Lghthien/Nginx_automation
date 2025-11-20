@@ -1,0 +1,26 @@
+{
+  "host": "192_168_127_136",
+  "timestamp": "20251120_104410",
+  "overall_compliance_rate": 0,
+  "cis_audit_summary": {},
+  "cis_audit_details": {},
+  "manual_checks_data": {},
+  "modules_executed": [
+    "PrepareSystem",
+    "InstallNginx",
+    "AuditBefore",
+    "ConfigUserPerm",
+    "ConfigLogging",
+    "ConfigSecurity",
+    "ValidateConfig",
+    "CISRemediate",
+    "RestartService",
+    "ManualCheck",
+    "AuditAfter",
+    "ExportResults"
+  ],
+  "recommendations": [
+    "Review all FAILED checks in the 'cis_audit_details' section for immediate remediation.",
+    "MANUAL ACTION REQUIRED: Review 'manual_checks_data' for items like Cipher Suites (4.1.5), HTTP-to-HTTPS Redirection (4.1.1), and IP Access Control (5.1.1) which require administrative verification or specific environment values."
+  ]
+}
