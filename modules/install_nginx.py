@@ -23,7 +23,6 @@ class InstallNginx:
                     self.logger.info(f"Installed version: {output.strip()}")
             else:
                 self.logger.info("Attempting to fix network connectivity and update lists...")
-                # (Giữ lại logic sửa lỗi mạng và update lists)
                 network_commands = [
                     'systemctl restart systemd-resolved',
                     'echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf',
@@ -39,9 +38,7 @@ class InstallNginx:
                     self.logger.error("Failed to update package lists.")
                     return False
                 
-                # Install NGINX
                 self.logger.info("Installing NGINX package...")
-                # Sử dụng apt-get/dnf theo phân phối. Ở đây giữ nguyên apt-get.
                 install_cmd = 'apt-get install -y nginx' 
                 exit_status, output, error = self.cm.exec_command(install_cmd, sudo=True)
                 
@@ -52,11 +49,9 @@ class InstallNginx:
                     self.logger.error(f"NGINX installation failed: {error}")
                     return False
 
-            # Check NGINX service status (Giữ lại logic start service nếu chưa chạy)
             if not self._check_port_80():
                 self.logger.warning("Port 80 is occupied, NGINX may not start. Continuing anyway...")
                 
-            # Try to start NGINX (Chạy service để các bước tiếp theo hoạt động)
             exit_status, output, error = self.cm.exec_command('systemctl is-active nginx', sudo=True)
             if exit_status != 0 or 'active' not in output:
                  self.logger.info("Starting NGINX service...")
@@ -67,7 +62,9 @@ class InstallNginx:
                  else:
                      self.logger.warning(f"NGINX service failed to start: {error}")
 
-            self.passed_checks += 1 # Đảm bảo check service có chạy được tính điểm.
+            # Enable NGINX to start on boot
+            self.cm.exec_command('systemctl enable nginx', sudo=True)
+            self.passed_checks += 1 
             
             return self.passed_checks >= 1
             

@@ -11,7 +11,6 @@ class AuditBefore:
         try:
             self.logger.info("Performing pre-configuration audit")
             
-            # Get NGINX version (nếu có)
             exit_status, output, error = self.cm.exec_command('nginx -v 2>&1')
             if exit_status == 0:
                 self.logger.info(f"Current NGINX version: {output}")
@@ -19,16 +18,13 @@ class AuditBefore:
             else:
                 self.logger.info("NGINX not installed yet")
 
-            # Check disk space
             exit_status, output, error = self.cm.exec_command("df -h / | awk 'NR==2{print $5}'")
             if exit_status == 0:
-                self.logger.info(f"Disk space: {output}")
+                self.logger.info(f"Disk space: {output.strip()}")
                 self.passed_checks += 1
 
-            # Check memory - sử dụng lệnh đơn giản hơn
             exit_status, output, error = self.cm.exec_command('free -h')
             if exit_status == 0:
-                # Hiển thị thông tin memory đơn giản
                 lines = output.split('\n')
                 if len(lines) > 1:
                     mem_info = lines[1].split()
@@ -36,7 +32,6 @@ class AuditBefore:
                         self.logger.info(f"Memory - Total: {mem_info[1]}, Used: {mem_info[2]}, Free: {mem_info[3]}")
                 self.passed_checks += 1
 
-            # Check system information
             exit_status, output, error = self.cm.exec_command('uname -a')
             if exit_status == 0:
                 self.logger.info(f"System info: {output.split()[0]} {output.split()[2]}")

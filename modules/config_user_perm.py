@@ -16,7 +16,6 @@ class ConfigUserPerm:
             user_exists = False
             exit_status, output, error = self.cm.exec_command('id nginx')
             if exit_status != 0:
-                # Tạo user chuyên dụng theo khuyến nghị CIS 2.2.1 [cite: 412]
                 create_cmd = 'useradd -r -s /sbin/nologin nginx 2>/dev/null || useradd -r -s /bin/false nginx'
                 exit_status, output, error = self.cm.exec_command(create_cmd, sudo=True)
                 if exit_status == 0:
@@ -30,10 +29,8 @@ class ConfigUserPerm:
                 self.passed_checks += 1
                 user_exists = True
 
-            # Cấu hình NGINX worker process chạy bằng user này
             if user_exists:
                 self.logger.info("Configuring nginx.conf 'user nginx;'")
-                # Thêm/cập nhật directive 'user nginx;' vào đầu nginx.conf [cite: 414]
                 cmd = "grep -q '^user nginx;' /etc/nginx/nginx.conf || sed -i '1i user nginx;' /etc/nginx/nginx.conf"
                 self.cm.exec_command(cmd, sudo=True)
                 self.passed_checks += 1

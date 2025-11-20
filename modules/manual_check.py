@@ -1,12 +1,12 @@
 import logging
 import json
-from typing import Tuple, List, Dict
+from typing import Tuple, Dict
 
 class ManualCheck:
     def __init__(self, connection_manager, logger):
         self.cm = connection_manager
         self.logger = logger
-        self.check_count = 1  # Chỉ tính là 1 bước thu thập
+        self.check_count = 1 
         self.passed_checks = 1
         self.manual_results = {}
 
@@ -30,16 +30,17 @@ class ManualCheck:
     def execute(self):
         self.logger.info("Collecting data for Manual CIS Checks (e.g., Certificates, Ciphers)")
 
-        # Thu thập dữ liệu cho các mục thủ công quan trọng (CIS 4.1.1, 4.1.5)
+        # CIS 4.1.1: Ensure HTTP is redirected to HTTPS (Manual)
         self._collect_manual_data("4.1.1", 
             "grep -ir 'return 301 https' /etc/nginx", 
             "HTTP to HTTPS Redirection Status")
         
+        # CIS 4.1.5: Disable weak ciphers (Manual)
         self._collect_manual_data("4.1.5", 
             "grep -ir ssl_ciphers /etc/nginx/", 
             "Weak Ciphers/SSL_Ciphers Configuration")
 
-        # Ghi kết quả ra file JSON
+        # Ghi kết quả ra file JSON, khắc phục cảnh báo thiếu file
         with open("cis_manual_results.json", 'w') as f:
             json.dump(self.manual_results, f, indent=2)
 

@@ -22,7 +22,10 @@ class Orchestrator:
             'config_logging',
             'validate_config',
             'restart_service',
-            'audit_after'
+            'audit_after',
+            'export_results',
+            'cis_remediate',
+            'manual_check'
         ]
     
     def run(self):

@@ -1,5 +1,5 @@
 import logging
-import base64
+import base64 # <-- ĐÃ THÊM IMPORT ĐỂ FIX LỖI
 
 class ConfigLogging:
     def __init__(self, connection_manager, logger):
@@ -14,7 +14,10 @@ class ConfigLogging:
             
             # --- 3.3 Ensure error logging is enabled and set to info level ---
             self.logger.info("Setting error_log to info level (CIS 3.3)")
+            # Xóa các dòng error_log cũ trước khi thêm dòng mới
+            self.cm.exec_command("sudo sed -i '/error_log/d' /etc/nginx/nginx.conf", sudo=True) 
             cmd_error_log = 'echo "error_log /var/log/nginx/error.log info;" | sudo tee -a /etc/nginx/nginx.conf'
+            
             if self.cm.exec_command(cmd_error_log, sudo=True)[0] == 0:
                  self.passed_checks += 1
                  self.logger.info("Error log set to info.")
@@ -37,9 +40,7 @@ class ConfigLogging:
     endscript
 }
 """
-            # Base64 encode config để ghi vào file
-            config_b64 = logging_config = logrotate_config
-            config_b64 = config_b64.encode('utf-8')
+            config_b64 = logrotate_config.encode('utf-8')
             config_b64 = base64.b64encode(config_b64).decode('utf-8')
 
             cmd_logrotate = f'echo "{config_b64}" | base64 -d | sudo tee /etc/logrotate.d/nginx'
