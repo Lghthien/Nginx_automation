@@ -1,7 +1,4 @@
-paramiko
-fabric
-jinja2
-python-dotenv
-pyyaml
-rich
-click
+paramiko>=3.4.0
+PyYAML>=6.0.1
+cryptography>=41.0.0
+
